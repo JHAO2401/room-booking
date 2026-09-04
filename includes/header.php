@@ -26,7 +26,7 @@ $site_background = find_first_image('backgrounds');
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= isset($page_title) ? e($page_title) . ' — RoomPlate' : 'RoomPlate — Discussion Room Booking' ?></title>
-<link rel="stylesheet" href="/assets/css/style.css?v=2">
+<link rel="stylesheet" href="/assets/css/style.css?v=<?= filemtime(__DIR__ . '/../assets/css/style.css') ?>">
 <link rel="icon" type="image/png" href="/images/logo/logo.png" />
 </head>
 <body<?= $site_background ? ' style="--hero-bg:url(\'' . e($site_background) . '\');"' : '' ?>>

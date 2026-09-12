@@ -1,24 +1,3 @@
-"""
-locustfile.py — Realistic concurrent-user load test for the Room Booking
-website, using Locust (https://locust.io).
-
-Unlike Apache Bench (which just hammers one URL), this simulates real user
-journeys: browsing rooms, viewing a room detail page, registering an
-account, and logging in — with random wait times between actions, spread
-across many simulated concurrent users.
-
-Setup (in CloudShell or your local machine with internet access):
-    python3 -m pip install locust
-
-Run headless (no web UI), 100 concurrent users, ramping up 10/second,
-for 5 minutes, against your ALB:
-    locust -f locustfile.py --host=http://your-alb-dns-name \
-        --headless -u 100 -r 10 --run-time 5m \
-        --csv=stress_results
-
-Run with the web UI instead (open http://localhost:8089 to control it):
-    locust -f locustfile.py --host=http://your-alb-dns-name
-"""
 
 import random
 import string

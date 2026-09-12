@@ -24,6 +24,9 @@
   const inputEnd = document.getElementById('input-end');
   const summary = document.getElementById('selection-summary');
   const submitBtn = document.getElementById('submit-booking');
+  const manualFallback = document.getElementById('manual-time-fallback');
+  const manualStart = document.getElementById('manual-start');
+  const manualEnd = document.getElementById('manual-end');
 
   const DAY_START = 8;  // 08:00
   const DAY_END = 20;   // 20:00
@@ -117,16 +120,39 @@
     }
   }
 
+  // Fallback mode: manual time inputs, used only if loading availability fails.
+  function enableManualFallback() {
+    document.getElementById('slot-container').style.display = 'none';
+    manualFallback.style.display = 'flex';
+    submitBtn.disabled = false; // allow submit; server still re-validates the slot
+
+    function syncManual() {
+      inputDate.value = datePicker.value;
+      inputStart.value = manualStart.value ? manualStart.value + ':00' : '';
+      inputEnd.value = manualEnd.value ? manualEnd.value + ':00' : '';
+      summary.textContent = (inputStart.value && inputEnd.value)
+        ? `Selected: ${manualStart.value} – ${manualEnd.value}`
+        : 'Pick a start and end time above.';
+    }
+    manualStart.addEventListener('change', syncManual);
+    manualEnd.addEventListener('change', syncManual);
+    datePicker.addEventListener('change', syncManual);
+  }
+
   function loadAvailability() {
     const date = datePicker.value;
     fetch(`/api/check_availability.php?room_id=${window.ROOM_ID}&date=${date}`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('bad status ' + res.status);
+        return res.json();
+      })
       .then(data => {
         bookedRanges = data.booked || [];
         buildGrid();
       })
-      .catch(() => {
-        slotGrid.innerHTML = '<p class="text-muted">Could not load availability. Please try again.</p>';
+      .catch((err) => {
+        console.error('check_availability.php failed, switching to manual time entry:', err);
+        enableManualFallback();
       });
   }
 

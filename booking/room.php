@@ -60,9 +60,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         );
         $stmt->execute([$room_id, $user['id'], $date, $start, $end, $purpose, $attendees]);
 
-        // Notify admins via SNS -> Lambda -> email. Never blocks the booking
-        // itself if this fails (e.g. not configured, or transient network issue).
-        sns_publish_event([
+        // Notify admins via SNS -> Lambda -> email.
+        // $sns_ok tells us right here, right now, whether the SNS call actually
+        // succeeded — no more digging through error_log to find out.
+        $sns_ok = sns_publish_event([
             'type'       => 'new_booking_request',
             'room_name'  => $room['name'],
             'user_name'  => $user['name'],
@@ -72,7 +73,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'end_time'   => $end,
         ]);
 
-        flash_set('Booking request submitted. Awaiting approval.', 'success');
+        if ($sns_ok) {
+            flash_set('Booking request submitted. Awaiting approval. (Notification sent ✅)', 'success');
+        } else {
+            flash_set('Booking request submitted, but the notification email failed to send. Check with the admin. (Notification failed ⚠️)', 'error');
+        }
+
         redirect('/booking/my_bookings.php');
     }
 }
@@ -125,6 +131,17 @@ include __DIR__ . '/../includes/header.php';
       <div id="slot-container">
         <label style="font-size:0.76rem; font-family: var(--font-mono); text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft);">Available slots (click a start, then an end)</label>
         <div class="slot-grid" id="slot-grid"><!-- populated by JS --></div>
+      </div>
+
+      <div id="manual-time-fallback" style="display:none; margin-top:12px; gap:12px;" class="form-grid">
+        <div class="field">
+          <label for="manual-start">Start time</label>
+          <input type="time" id="manual-start" min="08:00" max="19:00">
+        </div>
+        <div class="field">
+          <label for="manual-end">End time</label>
+          <input type="time" id="manual-end" min="09:00" max="20:00">
+        </div>
       </div>
 
       <form method="post" class="form-grid" style="margin-top:20px; max-width:480px;" id="booking-form">

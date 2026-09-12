@@ -2,7 +2,7 @@
 
 require_once __DIR__ . '/s3.php'; 
 function sns_publish_event(array $data): bool {
-    $topic_arn = getenv('SNS_RAW_TOPIC_ARN');
+    $topic_arn = 'arn:aws:sns:us-east-1:783053623314:room-booking-raw';
     if (!$topic_arn) return false; // notifications not configured, no-op
 
     $region = getenv('AWS_REGION') ?: 'us-east-1';

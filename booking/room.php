@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/sns.php';
 
 $room_id = (int)($_GET['id'] ?? 0);
 $stmt = $pdo->prepare('SELECT * FROM rooms WHERE id = ? AND is_active = 1');
@@ -58,6 +59,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
              VALUES (?, ?, ?, ?, ?, ?, ?, "pending")'
         );
         $stmt->execute([$room_id, $user['id'], $date, $start, $end, $purpose, $attendees]);
+
+        // Notify admins via SNS -> Lambda -> email. Never blocks the booking
+        // itself if this fails (e.g. not configured, or transient network issue).
+        sns_publish_event([
+            'type'       => 'new_booking_request',
+            'room_name'  => $room['name'],
+            'user_name'  => $user['name'],
+            'date'       => $date,
+            'start_time' => $start,
+            'end_time'   => $end,
+        ]);
+
         flash_set('Booking request submitted. Awaiting approval.', 'success');
         redirect('/booking/my_bookings.php');
     }

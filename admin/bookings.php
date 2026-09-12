@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/sns.php';
 require_admin();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -11,19 +12,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (in_array($action, ['approve', 'reject']) && $booking_id) {
         $new_status = $action === 'approve' ? 'approved' : 'rejected';
 
+        // Fetch booking + room + requester details, both for the approve
+        // conflict-check below and for the notification we send either way.
+        $b = $pdo->prepare(
+            'SELECT b.*, r.name AS room_name, u.name AS user_name
+             FROM bookings b
+             JOIN rooms r ON r.id = b.room_id
+             JOIN users u ON u.id = b.user_id
+             WHERE b.id = ?'
+        );
+        $b->execute([$booking_id]);
+        $booking = $b->fetch();
+
         // Guard: don't approve into a slot that's already approved for the same room/time
-        if ($new_status === 'approved') {
-            $b = $pdo->prepare('SELECT * FROM bookings WHERE id = ?');
-            $b->execute([$booking_id]);
-            $booking = $b->fetch();
-            if ($booking && !room_is_available($pdo, $booking['room_id'], $booking['booking_date'], $booking['start_time'], $booking['end_time'], $booking_id)) {
-                flash_set('Cannot approve — this slot now conflicts with another approved booking.', 'error');
-                redirect('/admin/bookings.php' . $redirect_qs);
-            }
+        if ($new_status === 'approved' && $booking
+            && !room_is_available($pdo, $booking['room_id'], $booking['booking_date'], $booking['start_time'], $booking['end_time'], $booking_id)) {
+            flash_set('Cannot approve — this slot now conflicts with another approved booking.', 'error');
+            redirect('/admin/bookings.php' . $redirect_qs);
         }
 
         $stmt = $pdo->prepare('UPDATE bookings SET status = ? WHERE id = ?');
         $stmt->execute([$new_status, $booking_id]);
+
+        if ($booking) {
+            sns_publish_event([
+                'type'       => 'booking_decision',
+                'decision'   => $new_status === 'approved' ? 'approved' : 'rejected',
+                'room_name'  => $booking['room_name'],
+                'user_name'  => $booking['user_name'],
+                'date'       => $booking['booking_date'],
+                'start_time' => $booking['start_time'],
+                'end_time'   => $booking['end_time'],
+            ]);
+        }
+
         flash_set('Booking ' . $new_status . '.', 'success');
     } elseif ($action === 'delete' && $booking_id) {
         $stmt = $pdo->prepare('DELETE FROM bookings WHERE id = ?');

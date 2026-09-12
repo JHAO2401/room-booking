@@ -5,7 +5,7 @@
  */
 
 function sns_publish_event(array $data): bool {
-    $topic_arn = 'arn:aws:sns:us-east-1:783053623314:room-booking-raw';
+    $topic_arn = 'arn:aws:sns:us-east-1:783053623314:room-booking-notifications';
 
     $message = json_encode($data);
     if ($message === false) {

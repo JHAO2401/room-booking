@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Fetch booking + room + requester details, both for the approve
         // conflict-check below and for the notification we send either way.
         $b = $pdo->prepare(
-            'SELECT b.*, r.name AS room_name, u.name AS user_name
+            'SELECT b.*, r.name AS room_name, u.name AS user_name, u.email AS user_email
              FROM bookings b
              JOIN rooms r ON r.id = b.room_id
              JOIN users u ON u.id = b.user_id
@@ -40,6 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'decision'   => $new_status === 'approved' ? 'approved' : 'rejected',
                 'room_name'  => $booking['room_name'],
                 'user_name'  => $booking['user_name'],
+                'email'      => $booking['user_email'],
                 'date'       => $booking['booking_date'],
                 'start_time' => $booking['start_time'],
                 'end_time'   => $booking['end_time'],

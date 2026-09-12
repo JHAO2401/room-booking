@@ -66,6 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'type'       => 'new_booking_request',
             'room_name'  => $room['name'],
             'user_name'  => $user['name'],
+            'email'      => $user['email'],
             'date'       => $date,
             'start_time' => $start,
             'end_time'   => $end,

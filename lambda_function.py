@@ -1,40 +1,42 @@
 import json
 import os
-import boto3
+import smtplib
+from email.mime.text import MIMEText
 
-sns = boto3.client('sns')
+GMAIL_ADDRESS = "yinjh-wm25@student.tarc.edu.my"
+GMAIL_APP_PASSWORD = "xznyhktbuyhjlixf"
 
-NOTIFICATION_TOPIC_ARN = os.environ['SNS_NOTIFICATION_TOPIC_ARN']
 
-
-def build_message(data):
+def build_email(data):
     msg_type = data.get('type')
+    room_name = data.get('room_name')
+    user_name = data.get('user_name')
+    date = data.get('date')
+    start_time = data.get('start_time')
+    end_time = data.get('end_time')
 
     if msg_type == 'new_booking_request':
-        subject = "New Room Booking Request"
+        subject = f"New Room Booking Request - {room_name}"
         body = (
-            f"New Room Booking Request\n"
-            f"--------------------------\n"
-            f"Room: {data.get('room_name')}\n"
-            f"Requested by: {data.get('user_name')}\n"
-            f"Date: {data.get('date')}\n"
-            f"Time: {data.get('start_time')} - {data.get('end_time')}\n\n"
-            f"Waiting for approval or rejection of this request."
+            f"Hi {user_name},\n\n"
+            f"Your room booking request has been submitted.\n\n"
+            f"Room: {room_name}\n"
+            f"Date: {date}\n"
+            f"Time: {start_time} - {end_time}\n\n"
+            f"You'll get another email once it's approved or rejected.\n\n"
+            f"RoomPlate"
         )
-
     elif msg_type == 'booking_decision':
         decision = data.get('decision', 'updated')
-        subject = f"Booking {decision.upper()}"
+        subject = f"Booking {decision.capitalize()} - {room_name}"
         body = (
-            f"Booking {decision.capitalize()}\n"
-            f"--------------------------\n"
-            f"Room: {data.get('room_name')}\n"
-            f"Booked by: {data.get('user_name')}\n"
-            f"Date: {data.get('date')}\n"
-            f"Time: {data.get('start_time')} - {data.get('end_time')}\n"
-            f"Status: {decision.capitalize()}\n"
+            f"Hi {user_name},\n\n"
+            f"Your booking has been {decision}.\n\n"
+            f"Room: {room_name}\n"
+            f"Date: {date}\n"
+            f"Time: {start_time} - {end_time}\n\n"
+            f"RoomPlate"
         )
-
     else:
         subject = "RoomPlate Notification"
         body = json.dumps(data, indent=2)
@@ -42,21 +44,33 @@ def build_message(data):
     return subject, body
 
 
+def send_email(data):
+    recipient = data.get('email')
+    if not recipient:
+        print(f"Skipped: no email address in message: {data}")
+        return
+
+    subject, body = build_email(data)
+
+    msg = MIMEText(body)
+    msg['Subject'] = subject
+    msg['From'] = GMAIL_ADDRESS
+    msg['To'] = recipient
+
+    with smtplib.SMTP('smtp.gmail.com', 587) as server:
+        server.starttls()
+        server.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
+        server.sendmail(GMAIL_ADDRESS, [recipient], msg.as_string())
+
+    print(f"Email sent to {recipient} ({data.get('type')})")
+
+
 def lambda_handler(event, context):
     for record in event.get('Records', []):
-        sns_message = record['Sns']['Message']
-
         try:
-            data = json.loads(sns_message)
-        except (ValueError, TypeError):
-            data = {'type': 'raw', 'text': sns_message}
+            data = json.loads(record['Sns']['Message'])
+            send_email(data)
+        except Exception as e:
+            print(f"Failed to process record: {e}")
 
-        subject, body = build_message(data)
-
-        sns.publish(
-            TopicArn=NOTIFICATION_TOPIC_ARN,
-            Subject=subject,
-            Message=body,
-        )
-
-    return {'statusCode': 200, 'body': 'Processed'}
+    return {'statusCode': 200}
